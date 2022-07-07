@@ -109,7 +109,7 @@ const testCert = (server1, server2) => {
   if (window.location.protocol == 'http:'){
     var protocol = window.location.protocol.replace('http', 'ws');
   } else {
-    var protocol = window.location.protocol.replace('https', 'ws');
+    var protocol = window.location.protocol.replace('https', 'wss');
   }   
   let wsUrl = `${protocol}//${server1}/rtmps/${rtmpURL}${streamKey}`;
 
@@ -302,7 +302,7 @@ const fallbackServer = (err) => {
   if (window.location.protocol == 'http:'){
     var protocol = window.location.protocol.replace('http', 'ws');
   } else {
-    var protocol = window.location.protocol.replace('https', 'ws');
+    var protocol = window.location.protocol.replace('https', 'wss');
   } 
   let testserver = "//127.0.0.1:3004" // if you need to perform test locally you can use the internal 
   let wsUrlFal = `${protocol}//${serverSec}/rtmps/${rtmpURL}${streamKey}`;
@@ -354,7 +354,7 @@ const startStreaming = async (e) =>{
     if (window.location.protocol == 'http:'){
       var protocol = window.location.protocol.replace('http', 'ws');
     } else {
-      var protocol = window.location.protocol.replace('https', 'ws');
+      var protocol = window.location.protocol.replace('https', 'wss');
     } 
     let localtest = '//127.0.0.1:3004'
     let wsUrl = `${protocol}//${serverPri}/rtmps/${rtmpURL}${streamKey}`;
