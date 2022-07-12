@@ -167,8 +167,12 @@ function Streampage() {
             setStatus({ isConnecting: false, isStreaming: true })
          }
       });
+      let mimeType = 'video/webm';
+      if(!MediaRecorder.isTypeSupported(mimeType)) {
+         mimeType = 'video/mp4';
+      }
       mediaRecorder.current = new MediaRecorder(stream.current, {
-         mimeType: 'video/webm',
+         mimeType,
          videoBitsPerSecond: 3000000,
       });
       mediaRecorder.current.addEventListener('dataavailable', (e) => {
