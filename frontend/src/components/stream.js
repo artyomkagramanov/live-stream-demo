@@ -1,6 +1,7 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable jsx-a11y/anchor-is-valid */
 import React, { useRef, useState, useEffect } from 'react';
+import socketIOClient from 'socket.io-client';
 import './stream.style.scss'
 
 
@@ -30,7 +31,8 @@ function Streampage() {
    const streamKey = process.env.REACT_APP_STREAM_KEY;
    const playURL = process.env.REACT_APP_PLAY_URL;
    const webSocketUrl = process.env.REACT_APP_WEBSOCKET_URL;
-
+   const jwtToken = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOlwvXC9hbXMubG9jXC9hcGlcL3YyXC9hdXRoXC9sb2dpbiIsImlhdCI6MTY1NzYyODIyNiwiZXhwIjoxNjU4MjMzMDI2LCJuYmYiOjE2NTc2MjgyMjYsImp0aSI6IkN4ZW8wREk1VEpVQ3E3cDAiLCJzdWIiOiI3NGFmZjBjOWJiZjA0OGUwOGRjNWJhNzUxMjA1NTE5MSIsInBydiI6Ijk0NDczZDRmMDcyMGYzYzM5ZDA4NTE5ODRkZDYwN2I2Y2YyZDk4MmQiLCJ1dWlkIjoiNzRhZmYwYzliYmYwNDhlMDhkYzViYTc1MTIwNTUxOTEiLCJ0eXBlIjoiYWRtaW4ifQ.llA-MV5CNV0JTPeKQspayk3TrdQFB7wIn6SXhcHS7QI';
+   const amsSocketUrl = 'http://ams.loc'
    useEffect(() => {
       (async function() {
          // C1 - init CAM
@@ -141,44 +143,85 @@ function Streampage() {
       setdebugMSG(null)
    };
 
+   const initLiveStreamSocket = (autoConnect = true) => {
+      const socketUrl = `${ amsSocketUrl }/live-stream`
+      if(!window.adminLiveStreamSocket) {
+         window.adminLiveStreamSocket = socketIOClient(socketUrl, {
+            autoConnect,
+            path: '/video-stream-connection',
+            forceNew: true,
+            transports: ['websocket', 'polling'],
+            reconnectionDelay: 50,
+            auth: (cb) => {
+               cb({
+                  token: jwtToken,
+               });
+            },
+         });
+      }
+      if(autoConnect) {
+         if(window.adminLiveStreamSocket.disconnected) {
+            window.adminLiveStreamSocket.connect()
+         }
+      }
+      return window.adminLiveStreamSocket;
+   }
+
    //S1 - Start streaming to IVS
    const startStreaming = async (e) => {
       e.preventDefault();
-      let wsUrl = `${ webSocketUrl }/rtmps/${ rtmpURL }${ streamKey }`;
-      wsRef.current = new WebSocket(wsUrl);
-      wsRef.current.onerror = err => {
-         console.error("Got a error!!!", err, wsRef.current)
-      }
-
-      wsRef.current.onclose = e => {
-         console.log("Fallback 1",  e.reason)
-      }
-
-      wsRef.current.onmessage = evt => {
-         setdebugMSG(evt.data)
-      }
-
-      wsRef.current.addEventListener('open', async function open(data) {
-         console.log("Open!!!", data)
-         setStatus({ isConnecting: true })
-         if(data){
-            console.log("!@@@@!!!")
-            await sleep(15000);
-            setStatus({ isConnecting: false, isStreaming: true })
+      const socket = initLiveStreamSocket();
+      socket.on('connect', (r) => {
+         let mimeType = 'video/webm';
+         if(!MediaRecorder.isTypeSupported(mimeType)) {
+            mimeType = 'video/mp4';
          }
+         mediaRecorder.current = new MediaRecorder(stream.current, {
+            mimeType,
+            videoBitsPerSecond: 3000000,
+         });
+         mediaRecorder.current.addEventListener('dataavailable', (e) => {
+            socket.emit('video:stream', e.data);
+         });
+         mediaRecorder.current.start(1000);
       });
-      let mimeType = 'video/webm';
-      if(!MediaRecorder.isTypeSupported(mimeType)) {
-         mimeType = 'video/mp4';
-      }
-      mediaRecorder.current = new MediaRecorder(stream.current, {
-         mimeType,
-         videoBitsPerSecond: 3000000,
-      });
-      mediaRecorder.current.addEventListener('dataavailable', (e) => {
-         wsRef.current.send(e.data);
-      });
-      mediaRecorder.current.start(1000);
+
+      // return;
+      // let wsUrl = `${ webSocketUrl }/rtmps/${ rtmpURL }${ streamKey }`;
+      // wsRef.current = new WebSocket(wsUrl);
+      // wsRef.current.onerror = err => {
+      //    console.error("Got a error!!!", err, wsRef.current)
+      // }
+
+      // wsRef.current.onclose = e => {
+      //    console.log("Fallback 1",  e.reason)
+      // }
+
+      // wsRef.current.onmessage = evt => {
+      //    setdebugMSG(evt.data)
+      // }
+
+      // wsRef.current.addEventListener('open', async function open(data) {
+      //    console.log("Open!!!", data)
+      //    setStatus({ isConnecting: true })
+      //    if(data){
+      //       console.log("!@@@@!!!")
+      //       await sleep(15000);
+      //       setStatus({ isConnecting: false, isStreaming: true })
+      //    }
+      // });
+      // let mimeType = 'video/webm';
+      // if(!MediaRecorder.isTypeSupported(mimeType)) {
+      //    mimeType = 'video/mp4';
+      // }
+      // mediaRecorder.current = new MediaRecorder(stream.current, {
+      //    mimeType,
+      //    videoBitsPerSecond: 3000000,
+      // });
+      // mediaRecorder.current.addEventListener('dataavailable', (e) => {
+      //    wsRef.current.send(e.data);
+      // });
+      // mediaRecorder.current.start(1000);
    }
 
    document.body.style = 'background: #262626;';
